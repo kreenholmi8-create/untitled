@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${title} + ' – вакансия'">Вакансия</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
+        .page { max-width: 960px; margin: 0 auto; padding: 24px 16px 48px; }
+        .card { background: #fff; border-radius: 8px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 16px; }
+        .title { font-size: 24px; font-weight: 700; margin: 0 0 8px; }
+        .salary { font-size: 18px; font-weight: 600; color: #008000; margin-bottom: 12px; }
+        .meta { font-size: 14px; color: #666; margin-bottom: 4px; }
+        .label { font-weight: 600; }
+        .section-title { font-size: 18px; font-weight: 600; margin: 24px 0 8px; }
+        .requirements { white-space: pre-wrap; line-height: 1.5; font-size: 14px; }
+        .link { color: #2b7cff; text-decoration: none; }
+        .link:hover { text-decoration: underline; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 12px; background: #eef2ff; color: #3b4cca; margin-left: 8px; }
+        .footer { font-size: 12px; color: #999; margin-top: 24px; }
+    </style>
+</head>
+<body>
+<div class="page">
+
+    <div class="card">
+        <div class="meta">
+            ID: <span th:text="${id}">1</span>
+            <span class="badge" th:text="${source}">hh.ru</span>
+        </div>
+
+        <h1 class="title" th:text="${title}">Java Developer</h1>
+
+        <div class="salary" th:text="${salary}">от 150 000 до 250 000 руб. на руки</div>
+
+        <div class="meta">
+            <span class="label">Компания:</span>
+            <span th:text="${company}">ООО Ромашка</span>
+        </div>
+
+        <div class="meta">
+            <span class="label">Город:</span>
+            <span th:text="${city}">Москва</span>
+        </div>
+
+        <div class="meta">
+            <span class="label">Источник:</span>
+            <a class="link"
+               th:href="${url}"
+               th:text="${url}"
+               target="_blank"
+               rel="noopener noreferrer">
+                https://example.com/vacancy/123
+            </a>
+        </div>
+
+        <div class="meta">
+            <span class="label">Опубликовано:</span>
+            <span th:text="${publishedAt}">2024-10-01T10:15</span>
+        </div>
+
+        <div class="meta">
+            <span class="label">Загружено в систему:</span>
+            <span th:text="${createdAt}">2024-10-02T12:00</span>
+        </div>
+
+        <h2 class="section-title">Описание / требования</h2>
+        <div class="requirements" th:text="${requirements}">
+            Требования...
+        </div>
+    </div>
+
+    <div class="footer">
+        Мокап вакансии на основе данных из VacancyDto.
+    </div>
+</div>
+</body>
+</html>

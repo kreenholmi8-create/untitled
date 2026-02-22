@@ -1,0 +1,6 @@
+id;source;url;title;company;city;salary;requirements;publishedAt;createdAt
+1;hh.ru;https://hh.ru/vacancy/1;Senior Java Developer;Яндекс;Москва;от 300000 до 450000 руб.;Опыт от 5 лет, Spring Boot, Kubernetes;2024-01-15T10:00:00;2024-01-16T12:00:00
+2;superjob.ru;https://superjob.ru/vacancy/2;Middle Python Developer;Сбербанк;Санкт-Петербург;от 180000 до 280000 руб.;Python, Django, PostgreSQL;2024-01-14T09:30:00;2024-01-15T11:00:00
+3;career.habr.com;https://career.habr.com/vacancies/3;Junior Frontend Developer;Тинькофф;Москва;от 80000 до 130000 руб.;React, TypeScript, CSS;2024-01-13T14:00:00;2024-01-14T16:00:00
+4;hh.ru;https://hh.ru/vacancy/4;Lead Backend Engineer;VK;Москва;от 400000 до 550000 руб.;Java, Microservices, Team Lead;2024-01-12T08:00:00;2024-01-13T10:00:00
+5;rabota.ru;https://rabota.ru/vacancy/5;Middle Java Developer;Ozon;Санкт-Петербург;от 200000 до 300000 руб.;Spring, Kafka, Docker;2024-01-11T11:30:00;2024-01-12T13:00:00

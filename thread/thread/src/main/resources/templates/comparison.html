@@ -1,0 +1,698 @@
+<!-- src/main/resources/templates/comparison.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Сравнение REST Polling vs WebSocket</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 { text-align: center; color: #333; }
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .panel {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .panel h2 {
+            margin-top: 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+        .panel.polling h2 { border-color: #ff6b6b; }
+        .panel.websocket h2 { border-color: #4ecdc4; }
+        .controls {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        label { display: block; margin-bottom: 5px; font-weight: 600; }
+        input[type="number"], select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+            width: 120px;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        .btn-polling { background: #ff6b6b; color: white; }
+        .btn-websocket { background: #4ecdc4; color: white; }
+        .btn-both { background: #45b7d1; color: white; }
+        .btn-clear { background: #95a5a6; color: white; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .metrics {
+            background: #f8f9fa;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .metric:last-child { border-bottom: none; }
+        .metric-label { color: #666; }
+        .metric-value { font-weight: 600; color: #333; }
+        .metric-value.highlight { color: #27ae60; }
+        .metric-value.warning { color: #e74c3c; }
+        .progress-bar {
+            height: 20px;
+            background: #eee;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        .progress-fill.polling { background: #ff6b6b; }
+        .progress-fill.websocket { background: #4ecdc4; }
+        .status {
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 13px;
+        }
+        .status.pending { background: #fff3cd; color: #856404; }
+        .status.progress { background: #cce5ff; color: #004085; }
+        .status.completed { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            padding: 15px;
+            border-radius: 4px;
+            height: 200px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+        .log-entry { margin: 2px 0; }
+        .log-entry.request { color: #569cd6; }
+        .log-entry.response { color: #4ec9b0; }
+        .log-entry.ws { color: #dcdcaa; }
+        .log-entry.error { color: #f44747; }
+        .log-entry .timestamp { color: #808080; margin-right: 10px; }
+        .summary {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th { background: #f8f9fa; font-weight: 600; }
+        .better { background: #d4edda; }
+        .worse { background: #f8d7da; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🔄 REST Polling vs ⚡ WebSocket</h1>
+
+    <div class="controls">
+        <h3>Параметры тестирования</h3>
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 15px;">
+            <div>
+                <label>Количество URL:</label>
+                <input type="number" id="urlCount" value="10" min="1" max="100">
+            </div>
+            <div>
+                <label>Задержка обработки (сек):</label>
+                <input type="number" id="delaySeconds" value="0" min="0" max="30">
+            </div>
+            <div>
+                <label>Интервал polling (мс):</label>
+                <input type="number" id="pollingInterval" value="500" min="100" max="5000" step="100">
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn-polling" onclick="startPolling()">▶ Запустить Polling</button>
+                <button class="btn-websocket" onclick="startWebSocket()">▶ Запустить WebSocket</button>
+                <button class="btn-both" onclick="startBoth()">▶ Запустить оба</button>
+                <button class="btn-clear" onclick="clearAll()">🗑 Очистить</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="comparison">
+        <!-- REST + Polling Panel -->
+        <div class="panel polling">
+            <h2>🔄 REST + Polling</h2>
+            <div id="pollingStatus" class="status pending">Ожидание запуска...</div>
+            <div class="progress-bar">
+                <div id="pollingProgress" class="progress-fill polling" style="width: 0%"></div>
+            </div>
+            <div class="metrics">
+                <div class="metric">
+                    <span class="metric-label">HTTP-запросов:</span>
+                    <span id="pollingRequests" class="metric-value">0</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Объём данных (входящий):</span>
+                    <span id="pollingDataIn" class="metric-value">0 KB</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Объём данных (исходящий):</span>
+                    <span id="pollingDataOut" class="metric-value">0 KB</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Время до результата:</span>
+                    <span id="pollingTime" class="metric-value">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Обработано URL:</span>
+                    <span id="pollingProcessed" class="metric-value">0 / 0</span>
+                </div>
+            </div>
+            <h4>Лог запросов:</h4>
+            <div id="pollingLog" class="log"></div>
+        </div>
+
+        <!-- WebSocket Panel -->
+        <div class="panel websocket">
+            <h2>⚡ WebSocket</h2>
+            <div id="wsStatus" class="status pending">Ожидание запуска...</div>
+            <div class="progress-bar">
+                <div id="wsProgress" class="progress-fill websocket" style="width: 0%"></div>
+            </div>
+            <div class="metrics">
+                <div class="metric">
+                    <span class="metric-label">HTTP-запросов:</span>
+                    <span id="wsRequests" class="metric-value">1 (handshake)</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">WS-сообщений:</span>
+                    <span id="wsMessages" class="metric-value">0</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Объём данных (входящий):</span>
+                    <span id="wsDataIn" class="metric-value">0 KB</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Время до результата:</span>
+                    <span id="wsTime" class="metric-value">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Обработано URL:</span>
+                    <span id="wsProcessed" class="metric-value">0 / 0</span>
+                </div>
+            </div>
+            <h4>Лог сообщений:</h4>
+            <div id="wsLog" class="log"></div>
+        </div>
+    </div>
+
+    <div class="summary" id="summarySection" style="display: none;">
+        <h2>📊 Сравнительная таблица результатов</h2>
+        <table>
+            <thead>
+            <tr>
+                <th>Метрика</th>
+                <th>REST + Polling</th>
+                <th>WebSocket</th>
+                <th>Разница</th>
+            </tr>
+            </thead>
+            <tbody id="summaryTable"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // Состояние приложения
+    const state = {
+        polling: {
+            taskId: null,
+            intervalId: null,
+            requests: 0,
+            dataIn: 0,
+            dataOut: 0,
+            startTime: null,
+            endTime: null,
+            processed: 0,
+            total: 0
+        },
+        ws: {
+            socket: null,
+            taskId: null,
+            messages: 0,
+            dataIn: 0,
+            startTime: null,
+            endTime: null,
+            processed: 0,
+            total: 0,
+            httpRequests: 1
+        }
+    };
+
+    const SOURCES = ["hh.ru", "superjob.ru", "rabota.ru", "linkedin.com", "career.habr.com"];
+
+    function generateUrls(count) {
+        const urls = [];
+        const origin = window.location.origin;
+        for (let i = 0; i < count; i++) {
+            const source = SOURCES[Math.floor(Math.random() * SOURCES.length)];
+            const id = 1 + Math.floor(Math.random() * 100000);
+            urls.push(`${origin}/mock/vacancy/${source}/${id}`);
+        }
+        return urls;
+    }
+
+    function getTimestamp() {
+        return new Date().toLocaleTimeString('ru-RU', { hour12: false });
+    }
+
+    function addLog(elementId, message, type = '') {
+        const log = document.getElementById(elementId);
+        const entry = document.createElement('div');
+        entry.className = `log-entry ${type}`;
+        entry.innerHTML = `<span class="timestamp">[${getTimestamp()}]</span>${message}`;
+        log.appendChild(entry);
+        log.scrollTop = log.scrollHeight;
+    }
+
+    function formatBytes(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        return (bytes / 1024).toFixed(2) + ' KB';
+    }
+
+    function updatePollingMetrics() {
+        document.getElementById('pollingRequests').textContent = state.polling.requests;
+        document.getElementById('pollingDataIn').textContent = formatBytes(state.polling.dataIn);
+        document.getElementById('pollingDataOut').textContent = formatBytes(state.polling.dataOut);
+        document.getElementById('pollingProcessed').textContent =
+            `${state.polling.processed} / ${state.polling.total}`;
+
+        if (state.polling.total > 0) {
+            const percent = (state.polling.processed / state.polling.total) * 100;
+            document.getElementById('pollingProgress').style.width = percent + '%';
+        }
+
+        if (state.polling.endTime && state.polling.startTime) {
+            const duration = (state.polling.endTime - state.polling.startTime) / 1000;
+            document.getElementById('pollingTime').textContent = duration.toFixed(2) + ' сек';
+        }
+    }
+
+    function updateWsMetrics() {
+        document.getElementById('wsRequests').textContent = state.ws.httpRequests + ' (handshake + start)';
+        document.getElementById('wsMessages').textContent = state.ws.messages;
+        document.getElementById('wsDataIn').textContent = formatBytes(state.ws.dataIn);
+        document.getElementById('wsProcessed').textContent =
+            `${state.ws.processed} / ${state.ws.total}`;
+
+        if (state.ws.total > 0) {
+            const percent = (state.ws.processed / state.ws.total) * 100;
+            document.getElementById('wsProgress').style.width = percent + '%';
+        }
+
+        if (state.ws.endTime && state.ws.startTime) {
+            const duration = (state.ws.endTime - state.ws.startTime) / 1000;
+            document.getElementById('wsTime').textContent = duration.toFixed(2) + ' сек';
+        }
+    }
+
+    function setStatus(elementId, status, text) {
+        const el = document.getElementById(elementId);
+        el.className = `status ${status}`;
+        el.textContent = text;
+    }
+
+    // ========== REST + Polling ==========
+    async function startPolling() {
+        const urlCount = parseInt(document.getElementById('urlCount').value);
+        const delaySeconds = parseInt(document.getElementById('delaySeconds').value);
+        const pollingInterval = parseInt(document.getElementById('pollingInterval').value);
+
+        // Сброс состояния
+        state.polling = {
+            taskId: null,
+            intervalId: null,
+            requests: 0,
+            dataIn: 0,
+            dataOut: 0,
+            startTime: Date.now(),
+            endTime: null,
+            processed: 0,
+            total: urlCount
+        };
+
+        document.getElementById('pollingLog').innerHTML = '';
+        document.getElementById('pollingProgress').style.width = '0%';
+        setStatus('pollingStatus', 'progress', 'Запуск парсинга...');
+        updatePollingMetrics();
+
+        const urls = generateUrls(urlCount);
+        const requestBody = JSON.stringify({ urls });
+
+        try {
+            // Отправляем запрос на старт
+            addLog('pollingLog', `POST /api/parse/start (${urls.length} URLs, delay=${delaySeconds}s)`, 'request');
+            state.polling.requests++;
+            state.polling.dataOut += requestBody.length;
+
+            const startResp = await fetch(`/api/parse/start?delaySeconds=${delaySeconds}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: requestBody
+            });
+
+            const startData = await startResp.json();
+            const startRespSize = JSON.stringify(startData).length;
+            state.polling.dataIn += startRespSize;
+
+            addLog('pollingLog', `Response: taskId=${startData.taskId} (${startRespSize} bytes)`, 'response');
+            state.polling.taskId = startData.taskId;
+
+            // Запускаем polling
+            setStatus('pollingStatus', 'progress', 'Polling статуса...');
+
+            state.polling.intervalId = setInterval(async () => {
+                try {
+                    state.polling.requests++;
+                    addLog('pollingLog', `GET /api/parse/status/${state.polling.taskId}`, 'request');
+
+                    const statusResp = await fetch(`/api/parse/status/${state.polling.taskId}`);
+                    const statusData = await statusResp.json();
+                    const respSize = JSON.stringify(statusData).length;
+                    state.polling.dataIn += respSize;
+
+                    state.polling.processed = statusData.processedUrls || 0;
+                    state.polling.total = statusData.totalUrls || urlCount;
+
+                    addLog('pollingLog',
+                        `Response: ${statusData.status} (${statusData.processedUrls}/${statusData.totalUrls}) - ${respSize} bytes`,
+                        'response');
+
+                    updatePollingMetrics();
+
+                    if (statusData.status === 'COMPLETED' || statusData.status === 'ERROR') {
+                        clearInterval(state.polling.intervalId);
+                        state.polling.endTime = Date.now();
+
+                        if (statusData.status === 'COMPLETED') {
+                            setStatus('pollingStatus', 'completed',
+                                `✅ Завершено! Сохранено: ${statusData.savedVacancies} вакансий`);
+                            addLog('pollingLog', `✅ Парсинг завершён успешно`, 'response');
+                        } else {
+                            setStatus('pollingStatus', 'error', `❌ Ошибка: ${statusData.errorMessage}`);
+                            addLog('pollingLog', `❌ Ошибка: ${statusData.errorMessage}`, 'error');
+                        }
+
+                        updatePollingMetrics();
+                        checkAndShowSummary();
+                    }
+                } catch (e) {
+                    addLog('pollingLog', `Ошибка polling: ${e.message}`, 'error');
+                }
+            }, pollingInterval);
+
+        } catch (e) {
+            setStatus('pollingStatus', 'error', `Ошибка: ${e.message}`);
+            addLog('pollingLog', `Ошибка: ${e.message}`, 'error');
+        }
+    }
+
+    // ========== WebSocket ==========
+    async function startWebSocket() {
+        const urlCount = parseInt(document.getElementById('urlCount').value);
+        const delaySeconds = parseInt(document.getElementById('delaySeconds').value);
+
+        // Сброс состояния
+        state.ws = {
+            socket: null,
+            taskId: null,
+            messages: 0,
+            dataIn: 0,
+            startTime: Date.now(),
+            endTime: null,
+            processed: 0,
+            total: urlCount,
+            httpRequests: 1
+        };
+
+        document.getElementById('wsLog').innerHTML = '';
+        document.getElementById('wsProgress').style.width = '0%';
+        setStatus('wsStatus', 'progress', 'Подключение к WebSocket...');
+        updateWsMetrics();
+
+        // Подключаемся к WebSocket
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${wsProtocol}//${window.location.host}/ws/parsing`;
+
+        addLog('wsLog', `Подключение к ${wsUrl}`, 'ws');
+
+        state.ws.socket = new WebSocket(wsUrl);
+
+        state.ws.socket.onopen = async () => {
+            addLog('wsLog', '✅ WebSocket подключён', 'ws');
+            setStatus('wsStatus', 'progress', 'Запуск парсинга...');
+
+            // Отправляем запрос на парсинг
+            const urls = generateUrls(urlCount);
+            const requestBody = JSON.stringify({ urls });
+
+            try {
+                state.ws.httpRequests++;
+                addLog('wsLog', `POST /api/parse/ws (${urls.length} URLs, delay=${delaySeconds}s)`, 'request');
+
+                const resp = await fetch(`/api/parse/ws?delaySeconds=${delaySeconds}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: requestBody
+                });
+
+                const data = await resp.json();
+                state.ws.taskId = data.taskId;
+                addLog('wsLog', `Response: taskId=${data.taskId}`, 'response');
+                setStatus('wsStatus', 'progress', 'Ожидание результатов через WebSocket...');
+
+            } catch (e) {
+                addLog('wsLog', `Ошибка запуска: ${e.message}`, 'error');
+                setStatus('wsStatus', 'error', `Ошибка: ${e.message}`);
+            }
+        };
+
+        state.ws.socket.onmessage = (event) => {
+            state.ws.messages++;
+            state.ws.dataIn += event.data.length;
+
+            try {
+                const data = JSON.parse(event.data);
+
+                // Фильтруем только наш taskId
+                if (state.ws.taskId && data.taskId !== state.ws.taskId) {
+                    return;
+                }
+
+                state.ws.processed = data.processedUrls || 0;
+                state.ws.total = data.totalUrls || urlCount;
+
+                addLog('wsLog',
+                    `📨 ${data.status}: ${data.processedUrls}/${data.totalUrls} (${event.data.length} bytes)`,
+                    'ws');
+
+                updateWsMetrics();
+
+                if (data.status === 'COMPLETED') {
+                    state.ws.endTime = Date.now();
+                    setStatus('wsStatus', 'completed',
+                        `✅ Завершено! Сохранено: ${data.savedVacancies} вакансий`);
+                    addLog('wsLog', `✅ Парсинг завершён успешно`, 'ws');
+                    state.ws.socket.close();
+                    updateWsMetrics();
+                    checkAndShowSummary();
+                } else if (data.status === 'ERROR') {
+                    state.ws.endTime = Date.now();
+                    setStatus('wsStatus', 'error', `❌ Ошибка: ${data.errorMessage}`);
+                    addLog('wsLog', `❌ Ошибка: ${data.errorMessage}`, 'error');
+                    state.ws.socket.close();
+                    updateWsMetrics();
+                    checkAndShowSummary();
+                }
+            } catch (e) {
+                addLog('wsLog', `Ошибка разбора: ${e.message}`, 'error');
+            }
+        };
+
+        state.ws.socket.onerror = (error) => {
+            addLog('wsLog', `❌ Ошибка WebSocket`, 'error');
+            setStatus('wsStatus', 'error', 'Ошибка WebSocket');
+        };
+
+        state.ws.socket.onclose = () => {
+            addLog('wsLog', '🔌 WebSocket отключён', 'ws');
+        };
+    }
+
+    function startBoth() {
+        startPolling();
+        setTimeout(() => startWebSocket(), 100);
+    }
+
+    function clearAll() {
+        // Остановка polling
+        if (state.polling.intervalId) {
+            clearInterval(state.polling.intervalId);
+        }
+
+        // Закрытие WebSocket
+        if (state.ws.socket) {
+            state.ws.socket.close();
+        }
+
+        // Сброс UI
+        document.getElementById('pollingLog').innerHTML = '';
+        document.getElementById('wsLog').innerHTML = '';
+        document.getElementById('pollingProgress').style.width = '0%';
+        document.getElementById('wsProgress').style.width = '0%';
+        document.getElementById('summarySection').style.display = 'none';
+
+        setStatus('pollingStatus', 'pending', 'Ожидание запуска...');
+        setStatus('wsStatus', 'pending', 'Ожидание запуска...');
+
+        // Сброс метрик
+        document.getElementById('pollingRequests').textContent = '0';
+        document.getElementById('pollingDataIn').textContent = '0 KB';
+        document.getElementById('pollingDataOut').textContent = '0 KB';
+        document.getElementById('pollingTime').textContent = '-';
+        document.getElementById('pollingProcessed').textContent = '0 / 0';
+
+        document.getElementById('wsRequests').textContent = '1 (handshake)';
+        document.getElementById('wsMessages').textContent = '0';
+        document.getElementById('wsDataIn').textContent = '0 KB';
+        document.getElementById('wsTime').textContent = '-';
+        document.getElementById('wsProcessed').textContent = '0 / 0';
+    }
+
+    function checkAndShowSummary() {
+        // Показываем сравнительную таблицу если оба теста завершены
+        if (state.polling.endTime && state.ws.endTime) {
+            showSummary();
+        }
+    }
+
+    function showSummary() {
+        const section = document.getElementById('summarySection');
+        const table = document.getElementById('summaryTable');
+
+        const pollingTime = (state.polling.endTime - state.polling.startTime) / 1000;
+        const wsTime = (state.ws.endTime - state.ws.startTime) / 1000;
+
+        const metrics = [
+            {
+                name: 'HTTP-запросов',
+                polling: state.polling.requests,
+                ws: state.ws.httpRequests,
+                unit: '',
+                lowerBetter: true
+            },
+            {
+                name: 'Входящий трафик',
+                polling: state.polling.dataIn,
+                ws: state.ws.dataIn,
+                unit: 'bytes',
+                lowerBetter: true,
+                format: formatBytes
+            },
+            {
+                name: 'Исходящий трафик',
+                polling: state.polling.dataOut,
+                ws: 0,
+                unit: 'bytes',
+                lowerBetter: true,
+                format: formatBytes
+            },
+            {
+                name: 'Общий трафик',
+                polling: state.polling.dataIn + state.polling.dataOut,
+                ws: state.ws.dataIn,
+                unit: 'bytes',
+                lowerBetter: true,
+                format: formatBytes
+            },
+            {
+                name: 'Время до результата',
+                polling: pollingTime,
+                ws: wsTime,
+                unit: 'сек',
+                lowerBetter: true,
+                format: (v) => v.toFixed(2) + ' сек'
+            }
+        ];
+
+        table.innerHTML = metrics.map(m => {
+            const pollingVal = m.format ? m.format(m.polling) : m.polling + ' ' + m.unit;
+            const wsVal = m.format ? m.format(m.ws) : m.ws + ' ' + m.unit;
+
+            let diff = '';
+            let pollingClass = '';
+            let wsClass = '';
+
+            if (m.polling !== m.ws) {
+                const pollingBetter = m.lowerBetter ? m.polling < m.ws : m.polling > m.ws;
+                pollingClass = pollingBetter ? 'better' : 'worse';
+                wsClass = pollingBetter ? 'worse' : 'better';
+
+                if (m.lowerBetter) {
+                    const ratio = m.ws > 0 ? (m.polling / m.ws).toFixed(1) : '∞';
+                    diff = pollingBetter ? `Polling лучше в ${(m.ws/m.polling).toFixed(1)}x` :
+                                          `WebSocket лучше в ${ratio}x`;
+                } else {
+                    diff = pollingBetter ? `Polling лучше` : `WebSocket лучше`;
+                }
+            } else {
+                diff = 'Одинаково';
+            }
+
+            return `<tr>
+                <td>${m.name}</td>
+                <td class="${pollingClass}">${pollingVal}</td>
+                <td class="${wsClass}">${wsVal}</td>
+                <td>${diff}</td>
+            </tr>`;
+        }).join('');
+
+        section.style.display = 'block';
+    }
+</script>
+</body>
+</html>
