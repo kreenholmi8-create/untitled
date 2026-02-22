@@ -2,6 +2,6 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/s5-netology-threading" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/threading" vcs="Git" />
   </component>
 </project>
